@@ -8,6 +8,9 @@ import (
 
 const maxRetries = 2
 
+// File is a thread-safe wrapper around a standard os.File.
+// It provides advanced features like automatic directory creation,
+// file health checks (stat), and retry logic for writes.
 type File struct {
 	mu   sync.Mutex
 	file *os.File
@@ -16,6 +19,8 @@ type File struct {
 	perm os.FileMode
 }
 
+// NewFile creates a new File instance. It automatically creates the
+// required directory tree and opens the file with the specified flags.
 func NewFile(name string, flag int, perm os.FileMode) (*File, error) {
 	file, err := openFile(name, flag, perm)
 	if err != nil {
@@ -28,6 +33,39 @@ func NewFile(name string, flag int, perm os.FileMode) (*File, error) {
 		flag: flag,
 		perm: perm,
 	}, nil
+}
+
+// Write persists bytes to the file. It ensures the file exists,
+// handles retries, and calls Sync() to flush data to physical storage.
+func (f *File) Write(bytes []byte) (int, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
+	if err := f.stat(); err != nil {
+		return 0, err
+	}
+
+	return len(bytes), f.retry(func() error {
+		_, err := f.file.Write(bytes)
+		if err != nil {
+			return err
+		}
+		return f.file.Sync()
+	})
+}
+
+// Close gracefully releases the file descriptor.
+func (f *File) Close() error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
+	if f.file != nil {
+		err := f.file.Close()
+		f.file = nil
+		return err
+	}
+
+	return nil
 }
 
 func (f *File) reopen() error {
@@ -70,36 +108,6 @@ func (f *File) retry(fn func() error) error {
 	}
 
 	return err
-}
-
-func (f *File) Write(bytes []byte) (int, error) {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-
-	if err := f.stat(); err != nil {
-		return 0, err
-	}
-
-	return len(bytes), f.retry(func() error {
-		_, err := f.file.Write(bytes)
-		if err != nil {
-			return err
-		}
-		return f.file.Sync()
-	})
-}
-
-func (f *File) Close() error {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-
-	if f.file != nil {
-		err := f.file.Close()
-		f.file = nil
-		return err
-	}
-
-	return nil
 }
 
 func openFile(name string, flag int, perm os.FileMode) (*os.File, error) {

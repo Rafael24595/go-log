@@ -15,7 +15,7 @@ func TestJsonLinesFormat(t *testing.T) {
 		{Message: "Second log entry"},
 	}
 
-	output, err := fmt_json.JsonFormat.Format(records...)
+	output, err := fmt_json.JsonLineFormat.Format(records...)
 	if err != nil {
 		t.Fatalf("Failed to format records: %v", err)
 	}
@@ -41,7 +41,7 @@ func TestJsonLinesFormat(t *testing.T) {
 }
 
 func TestJsonLinesFormat_Empty(t *testing.T) {
-	output, err := fmt_json.JsonFormat.Format()
+	output, err := fmt_json.JsonLineFormat.Format()
 	if err != nil {
 		t.Errorf("Should not fail with zero records: %v", err)
 	}
