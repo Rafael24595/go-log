@@ -13,7 +13,7 @@ jobs:
         version: ${{ steps.check.outputs.version }}
       steps:
         - name: Checkout code
-          uses: actions/checkout@v4
+          uses: actions/checkout@v6
         
         - name: Install yq
           run: |
@@ -60,7 +60,7 @@ jobs:
       exists: ${{ steps.check.outputs.exists }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Fetch tags and check for existing tag
         id: check
@@ -83,10 +83,10 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Set up Go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v6
         with:
           go-version: '1.25.5'
 
