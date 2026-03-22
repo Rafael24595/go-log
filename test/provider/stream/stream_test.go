@@ -16,7 +16,7 @@ func TestStreamLogger_Integrity(t *testing.T) {
 	lg, err := stream.StreamProvider{
 		Writer: &buf,
 		Buffer: 10,
-	}.Build()
+	}.Build(t.Context())
 
 	if err != nil {
 		t.Fatalf("failed to build logger: %v", err)

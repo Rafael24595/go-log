@@ -1,6 +1,7 @@
 package file
 
 import (
+	"context"
 	"fmt"
 	"os"
 
@@ -16,16 +17,31 @@ import (
 	"github.com/Rafael24595/go-log/log/provider/stream"
 )
 
+// LoggerFile is the default identifier for file-based loggers.
 const LoggerFile logger.Logger = "File"
 
+// FileProvider configures and creates a logger that persists records to a physical file.
+// It automatically handles file creation, naming conventions, and resource cleanup.
 type FileProvider struct {
+	// Session is an optional identifier added to the filename (e.g., "user-auth").
 	Session string
+	// Buffer size for the underlying engine channel.
 	Buffer  int
+	// Path is the directory where log files will be created.
 	Path    string
+	// Format defines the layout of the log entries (e.g., Text or JSONL).
 	Format  *format.Format
 }
 
-func (p FileProvider) Build() (log.Log, error) {
+// New returns a new, unconfigured FileProvider as a log.Provider interface.
+func New() log.Provider {
+	return FileProvider{}
+}
+
+// Build initializes a file-based logger. It generates a unique filename using 
+// the current timestamp and session name, ensures the file is opened with 
+// appropriate permissions, and leverages StreamProvider for the writing logic.
+func (p FileProvider) Build(ctx context.Context) (log.Log, error) {
 	timestamp := clock.UnixMilliClock()
 
 	if p.Path == "" {
@@ -46,7 +62,7 @@ func (p FileProvider) Build() (log.Log, error) {
 		Format:      p.Format,
 		Writer:      file,
 		CloseAction: makeCloseAction(file),
-	}.Build()
+	}.Build(ctx)
 }
 
 func makeCloseAction(file *file.File) engine.CloseAction {

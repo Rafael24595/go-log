@@ -2,19 +2,28 @@ package engine
 
 import (
 	"bytes"
+	"context"
 	"fmt"
-	"io"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/Rafael24595/go-log/log/model/record"
-	"github.com/Rafael24595/go-log/log/provider/stream"
 )
 
 func TestEngine_Concurrency(t *testing.T) {
 	var buf bytes.Buffer
-	lg, _ := stream.StreamProvider{Writer: &buf}.Build()
+
+	eng, _ := NewEngine(
+		t.Context(),
+		"InternalTest",
+		10,
+		func(r record.Record, _ []record.Record) error {
+			buf.Write([]byte(r.Message))
+			return nil
+		},
+		VoidCloseAction,
+	)
 
 	var wg sync.WaitGroup
 	goroutines := 50
@@ -26,13 +35,13 @@ func TestEngine_Concurrency(t *testing.T) {
 		go func(id int) {
 			defer wg.Done()
 			for i := range logsPerRoutine {
-				lg.Message(fmt.Sprintf("Routine %d - Log %d", id, i))
+				eng.Message(fmt.Sprintf("Routine %d - Log %d", id, i))
 			}
 		}(g)
 	}
 
 	wg.Wait()
-	records, _ := lg.Close()
+	records, _ := eng.Close()
 
 	if len(records) != totalExpected {
 		t.Errorf("Race condition detected: expected %d records, got %d", totalExpected, len(records))
@@ -40,16 +49,20 @@ func TestEngine_Concurrency(t *testing.T) {
 }
 
 func TestEngine_RecordsImmutability(t *testing.T) {
-	lg, _ := stream.StreamProvider{
-		Writer: io.Discard,
-	}.Build()
+	eng, _ := NewEngine(
+		t.Context(),
+		"InternalTest",
+		10,
+		VoidWriteAction,
+		VoidCloseAction,
+	)
 
-	lg.Message("Log 1")
+	eng.Message("Log 1")
 	time.Sleep(1 * time.Millisecond)
 
-	history := lg.Records()
+	history := eng.Records()
 
-	lg.Message("Log 2")
+	eng.Message("Log 2")
 	time.Sleep(1 * time.Millisecond)
 
 	if len(history) != 1 {
@@ -64,16 +77,39 @@ func TestEngine_CloseIdempotency(t *testing.T) {
 		return nil
 	}
 
-	lg, _ := stream.StreamProvider{
-		Writer: io.Discard,
-		CloseAction: closeAction,
-	}.Build()
+	eng, _ := NewEngine(
+		t.Context(),
+		"InternalTest",
+		10,
+		VoidWriteAction,
+		closeAction,
+	)
 
-	lg.Close()
-	lg.Close()
-	lg.Close()
+	eng.Close()
+	eng.Close()
+	eng.Close()
 
 	if counter != 1 {
 		t.Errorf("El CloseAction se ejecutó %d veces, debería ser solo 1", counter)
+	}
+}
+
+func TestEngine_ShutdownMechanism(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+
+	eng, _ := NewEngine(
+		ctx,
+		"InternalTest",
+		10,
+		VoidWriteAction,
+		VoidCloseAction,
+	)
+
+	cancel()
+
+	select {
+	case <-eng.done:
+	case <-time.After(100 * time.Millisecond):
+		t.Error("Engine failed to close internal 'done' channel")
 	}
 }

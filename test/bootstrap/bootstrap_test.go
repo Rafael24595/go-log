@@ -18,7 +18,7 @@ func TestBootstrap_Flush(t *testing.T) {
 		Writer: &buf,
 	}
 
-	err := log.DefaultFromProvider(p)
+	err := log.DefaultFromProvider(t.Context(), p)
 	if err != nil {
 		t.Fatalf("Init failed: %v", err)
 	}

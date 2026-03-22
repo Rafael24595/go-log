@@ -1,6 +1,7 @@
 package log
 
 import (
+	"context"
 	"fmt"
 	"sync/atomic"
 
@@ -25,6 +26,7 @@ func newBootstrapLogger() (Bootstrap, error) {
 	flushed := &atomic.Bool{}
 
 	engine, err := engine.NewEngine(
+		context.Background(),
 		loggerBootstrap,
 		constants.DefaultBufferSize,
 		engine.VoidWriteAction,
@@ -43,7 +45,7 @@ func newBootstrapLogger() (Bootstrap, error) {
 
 func makeCloseAction(flushed *atomic.Bool) engine.CloseAction {
 	timestamp := clock.UnixMilliClock()
-	json := json.JsonFormat
+	json := json.JsonLineFormat
 
 	return func(records []record.Record) error {
 		if flushed.Load() || len(records) == 0 {
@@ -66,9 +68,9 @@ func makeCloseAction(flushed *atomic.Bool) engine.CloseAction {
 
 func (l *bootstrapLogger) Flush(target Log) error {
 	if l.flushed.Swap(true) {
-        return nil 
-    }
-	
+		return nil
+	}
+
 	l.flushed.Store(true)
 
 	records, err := l.Close()

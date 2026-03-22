@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 )
 
+// ReadFile opens a file, reads its entire content, and closes it.
+// It automatically creates the directory path if it doesn't exist.
 func ReadFile(filePath string) ([]byte, error) {
 	dir := filepath.Dir(filePath)
 	err := os.MkdirAll(dir, os.ModePerm)
@@ -27,6 +29,8 @@ func ReadFile(filePath string) ([]byte, error) {
 	return result, readErr
 }
 
+// WriteFile writes a string to a file, truncating it if it already exists.
+// It ensures the directory structure exists before writing.
 func WriteFile(filePath, content string) error {
 	dir := filepath.Dir(filePath)
 	err := os.MkdirAll(dir, os.ModePerm)
@@ -52,6 +56,9 @@ func WriteFile(filePath, content string) error {
 	return nil
 }
 
+// WriteFileSafe writes content to a temporary file first, then renames it 
+// to the target path. This ensures atomicity: the target file is either 
+// fully updated or remains unchanged if a crash occurs.
 func WriteFileSafe(filePath, content string) error {
 	dir := filepath.Dir(filePath)
 	if err := os.MkdirAll(dir, os.ModePerm); err != nil {
@@ -82,6 +89,8 @@ func WriteFileSafe(filePath, content string) error {
 	return tmpFile.Sync()
 }
 
+// AppendFileSafe appends content to a file, creating it if it doesn't exist.
+// It uses Sync() to ensure the data is physically persisted to the disk.
 func AppendFileSafe(filePath, content string) error {
 	dir := filepath.Dir(filePath)
 	if err := os.MkdirAll(dir, os.ModePerm); err != nil {
