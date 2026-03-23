@@ -24,11 +24,15 @@ func (p MockProvider) Build(ctx context.Context) (log.Log, error) {
 type MockLogger struct {
 	Logger  logger.Logger
 	History []record.Record
-	Closed  bool
+	Exit    bool
 }
 
 func (m *MockLogger) Name() logger.Logger {
 	return m.Logger
+}
+
+func (m *MockLogger) Closed() bool {
+	return m.Exit
 }
 
 func (m *MockLogger) Records() []record.Record {
@@ -36,10 +40,15 @@ func (m *MockLogger) Records() []record.Record {
 }
 
 func (m *MockLogger) Custom(cat string, msg string) record.Record {
-	r := record.Record{Category: record.Category(cat), Message: msg}
+	return m.Customc(record.Category(cat), msg)
+}
+
+func (m *MockLogger) Customc(cat record.Category, msg string) record.Record {
+	r := record.Record{Category: cat, Message: msg}
 	m.History = append(m.History, r)
 	return r
 }
+
 func (m *MockLogger) Custome(cat string, err error) record.Record {
 	return m.Custom(cat, err.Error())
 }
@@ -82,6 +91,6 @@ func (m *MockLogger) Record(recs ...record.Record) []record.Record {
 }
 
 func (m *MockLogger) Close() ([]record.Record, error) {
-	m.Closed = true
+	m.Exit = true
 	return m.History, nil
 }

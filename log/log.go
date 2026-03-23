@@ -29,6 +29,11 @@ type Provider interface {
 	Build(context.Context) (Log, error)
 }
 
+// Default returns the current global Log instance.
+func Default() Log {
+	return log
+}
+
 // DefaultFromProvider initializes the global logger using a given provider.
 // The provided context controls the lifetime of the underlying logging engine.
 func DefaultFromProvider(ctx context.Context, provider Provider) error {
@@ -92,10 +97,14 @@ type Bootstrap interface {
 type Log interface {
 	// Name returns the identifier of the current logger instance (e.g., "File", "Stream").
 	Name() logger.Logger
+	// Closed returns true if the logger engine has been shut down.
+	Closed() bool
 	// Records returns a slice of all log entries collected by this instance so far.
 	Records() []record.Record
 	// Custom logs a message with a user-defined category string.
 	Custom(string, string) record.Record
+	// Custom logs a message with a user-defined category.
+	Customc(record.Category, string) record.Record
 	// Custome logs an error associated with a specific custom category.
 	Custome(string, error) record.Record
 	// Customf logs a formatted message with a user-defined category.
@@ -133,6 +142,11 @@ func Records() []record.Record {
 // Custom logs a message with a user-defined category string using the global logger.
 func Custom(category string, message string) {
 	log.Custom(category, message)
+}
+
+// Custom logs a message with a user-defined category using the global logger.
+func Customc(category record.Category, message string) {
+	log.Customc(category, message)
 }
 
 // Custome logs an error associated with a specific custom category using the global logger.

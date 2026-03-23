@@ -2,6 +2,8 @@
 
 A high-performance, asynchronous, resilient, and multi-channel logging library for Go. Designed for applications that require non-blocking operations, featuring native support for multiple destinations and extensible formatting dispatch.
 
+---
+
 ## Features
 
 - Non-Blocking Architecture: All write operations are processed in the background using buffered channels to ensure zero latency on the main application flow.
@@ -148,6 +150,63 @@ myFormat := format.Format{
     Extension: "audit",
     Format:    auditInst.Serialize, // Injecting the method
 }
+```
+
+## Standard Library Bridge (io.Writer)
+
+One of the most versatile features of **Go-Log** is its ability to act as an `io.Writer`. This allows you to plug the asynchronous engine into any standard Go component.
+
+### Dynamic Proxying
+
+The writer returned by `WriterFromString()` or `WriterFromCategory()` does not store a static reference to the logger. Instead, it always resolves to the **current active logger**. 
+
+1. **Phase 1 (Bootstrap)**: If an HTTP server writes to the proxy before you initialize your final provider, the logs go to the Bootstrap buffer.
+2. **Phase 2 (Handover)**: As soon as `DefaultFromProvider` is called, the **very next byte** written to the proxy will go directly to your new destination (File, Console, etc.).
+
+### Usage Examples
+
+#### 1. Redirecting the Standard `log` Package
+
+```go
+package main
+
+import (
+	"log"
+
+	go_log "github.com/Rafael24595/go-log/log"
+)
+
+func main() {
+	// Redirect all log.Print() calls to our system under the "LEGACY" category
+	log.SetOutput(go_log.WriterFromString("LEGACY"))
+
+	log.Println("This standard call is now asynchronous!")
+}
+```
+
+#### 2. Capturing HTTP Server Errors
+
+```go
+package main
+
+import (
+	"log"
+	"net/http"
+
+	go_log "github.com/Rafael24595/go-log/log"
+	"github.com/Rafael24595/go-log/log/model/record"
+)
+
+const HTTP_INTERNAL record.Category = "HTTP-INTERNAL"
+
+func main() {
+	server := &http.Server{
+		Addr: ":8080",
+		// Capture internal server errors into our "HTTP-INTERNAL" category
+		ErrorLog: log.New(go_log.WriterFromCategory(HTTP_INTERNAL), "", 0),
+	}
+}
+
 ```
 
 ---

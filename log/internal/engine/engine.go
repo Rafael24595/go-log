@@ -75,6 +75,11 @@ func (l *Engine) Name() logger.Logger {
 	return l.name
 }
 
+// Closed returns true if this engine instance has been shut down.
+func (l *Engine) Closed() bool {
+	return l.closed.Load()
+}
+
 // Records returns a thread-safe copy of all records processed by the engine.
 // It uses a read-lock to allow multiple concurrent readers while preventing
 // data races during background writes.
@@ -88,11 +93,16 @@ func (l *Engine) Records() []record.Record {
 	return out
 }
 
-// Custom processes a message with a specific category string. 
+// Custom processes a message with a specific category string.
 // It automatically converts the category to uppercase for consistency.
 func (l *Engine) Custom(category string, message string) record.Record {
 	upperCategory := strings.ToUpper(category)
-	return l.write(record.Category(upperCategory), message)
+	return l.Customc(record.Category(upperCategory), message)
+}
+
+// Custom processes a message with a specific category.
+func (l *Engine) Customc(category record.Category, message string) record.Record {
+	return l.write(category, message)
 }
 
 // Custome is a helper that logs a custom category using an error's message.

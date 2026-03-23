@@ -89,7 +89,7 @@ func TestMultiLogger_MultiplexingClosesAll(t *testing.T) {
 	}
 
 	ml.Close()
-	if !m1.Closed || !m2.Closed {
+	if !m1.Closed() || !m2.Closed() {
 		t.Error("not all loggers were closed")
 	}
 }
