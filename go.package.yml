@@ -2,5 +2,5 @@ version: '1.1'
 
 project:
   name: go-log
-  version: v0.1.0
+  version: v0.2.0
   description: Go Log
