@@ -44,7 +44,8 @@ type multiLogger struct {
 	loggers []log.Log
 }
 
-
+// Name returns a combined string of all child logger names separated by "+".
+// Example: "Console+File+Stream".
 func (m *multiLogger) Name() logger.Logger {
 	var name logger.Logger
 	for i, l := range m.loggers {
@@ -56,6 +57,20 @@ func (m *multiLogger) Name() logger.Logger {
 	return name
 }
 
+// Closed returns true only if all underlying loggers are closed.
+// If at least one child logger is still active, it returns false to 
+// allow continued operations on the remaining functional channels.
+func (m *multiLogger) Closed() bool {
+	for _, l := range m.loggers {
+		if !l.Closed() {
+			return true
+		}
+	}
+	return true
+}
+
+// Records aggregates and returns all log entries collected by every 
+// child logger in the orchestration.
 func (m *multiLogger) Records() []record.Record {
 	records := make([]record.Record, 0)
 	for _, l := range m.loggers {
@@ -64,6 +79,8 @@ func (m *multiLogger) Records() []record.Record {
 	return records
 }
 
+// Custom logs a message under a user-defined category string.
+// The category is normalized to ensure consistent formatting across providers.
 func (m *multiLogger) Custom(category string, message string) record.Record {
 	var last record.Record
 	for _, l := range m.loggers {
@@ -72,6 +89,18 @@ func (m *multiLogger) Custom(category string, message string) record.Record {
 	return last
 }
 
+// Customc is the high-performance version of Custom. 
+// It accepts a typed record.Category, avoiding type conversions and 
+// ensuring that only valid, pre-defined categories are used.
+func (m *multiLogger) Customc(category record.Category, message string) record.Record {
+	var last record.Record
+	for _, l := range m.loggers {
+		last = l.Customc(category, message)
+	}
+	return last
+}
+
+// Custome logs a standard Go error object under a custom category.
 func (m *multiLogger) Custome(category string, err error) record.Record {
 	var last record.Record
 	for _, l := range m.loggers {
@@ -80,6 +109,7 @@ func (m *multiLogger) Custome(category string, err error) record.Record {
 	return last
 }
 
+// Customf logs a formatted message under a custom category.
 func (m *multiLogger) Customf(category string, format string, a ...any) record.Record {
 	var last record.Record
 	for _, l := range m.loggers {
@@ -88,6 +118,8 @@ func (m *multiLogger) Customf(category string, format string, a ...any) record.R
 	return last
 }
 
+// Message logs a plain text informational message using the default MESSAGE category.
+// It broadcasts the message to all underlying loggers in the multi-provider.
 func (m *multiLogger) Message(message string) record.Record {
 	var last record.Record
 	for _, l := range m.loggers {
@@ -96,6 +128,8 @@ func (m *multiLogger) Message(message string) record.Record {
 	return last
 }
 
+// Messagef logs a formatted informational message (printf-style).
+// It is useful for dynamic messages that include variables or state information.
 func (m *multiLogger) Messagef(format string, a ...any) record.Record {
 	var last record.Record
 	for _, l := range m.loggers {
@@ -104,6 +138,8 @@ func (m *multiLogger) Messagef(format string, a ...any) record.Record {
 	return last
 }
 
+// Warning logs a potential issue or a non-critical anomalous state.
+// This is broadcasted to all active loggers to ensure visibility across all channels.
 func (m *multiLogger) Warning(message string) record.Record {
 	var last record.Record
 	for _, l := range m.loggers {
@@ -112,6 +148,8 @@ func (m *multiLogger) Warning(message string) record.Record {
 	return last
 }
 
+// Warningf logs a formatted warning message.
+// Useful for providing context, such as "Retry attempt %d of %d".
 func (m *multiLogger) Warningf(format string, a ...any) record.Record {
 	var last record.Record
 	for _, l := range m.loggers {
@@ -120,6 +158,8 @@ func (m *multiLogger) Warningf(format string, a ...any) record.Record {
 	return last
 }
 
+// Error logs a standard Go error object. It automatically extracts the error string.
+// This is the preferred method for logging caught exceptions and failures.
 func (m *multiLogger) Error(err error) record.Record {
 	var last record.Record
 	for _, l := range m.loggers {
@@ -128,6 +168,7 @@ func (m *multiLogger) Error(err error) record.Record {
 	return last
 }
 
+// Errors logs an error represented as a raw string instead of a Go error object.
 func (m *multiLogger) Errors(message string) record.Record {
 	var last record.Record
 	for _, l := range m.loggers {
@@ -136,6 +177,8 @@ func (m *multiLogger) Errors(message string) record.Record {
 	return last
 }
 
+// Errorf logs a formatted error message, allowing developers to wrap 
+// error context into a single readable entry.
 func (m *multiLogger) Errorf(format string, a ...any) record.Record {
 	var last record.Record
 	for _, l := range m.loggers {
@@ -144,6 +187,8 @@ func (m *multiLogger) Errorf(format string, a ...any) record.Record {
 	return last
 }
 
+// Record allows manual insertion of pre-built Record objects into 
+// all underlying engines simultaneously.
 func (m *multiLogger) Record(records ...record.Record) []record.Record {
 	for _, l := range m.loggers {
 		l.Record(records...)
@@ -151,6 +196,9 @@ func (m *multiLogger) Record(records ...record.Record) []record.Record {
 	return records
 }
 
+// Close gracefully shuts down all child loggers. It collects all 
+// flushed records from every child and returns the last encountered 
+// error (if any) during the mass-closing process.
 func (m *multiLogger) Close() ([]record.Record, error) {
 	var allRecords []record.Record
 	var lastErr error
