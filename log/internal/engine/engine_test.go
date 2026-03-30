@@ -9,6 +9,9 @@ import (
 	"time"
 
 	"github.com/Rafael24595/go-log/log/model/record"
+
+	"github.com/Rafael24595/go-assert/assert/test"
+
 )
 
 func TestEngine_Concurrency(t *testing.T) {
@@ -43,9 +46,7 @@ func TestEngine_Concurrency(t *testing.T) {
 	wg.Wait()
 	records, _ := eng.Close()
 
-	if len(records) != totalExpected {
-		t.Errorf("Race condition detected: expected %d records, got %d", totalExpected, len(records))
-	}
+	assert.Len(t, totalExpected, records)
 }
 
 func TestEngine_RecordsImmutability(t *testing.T) {
@@ -65,9 +66,7 @@ func TestEngine_RecordsImmutability(t *testing.T) {
 	eng.Message("Log 2")
 	time.Sleep(1 * time.Millisecond)
 
-	if len(history) != 1 {
-		t.Errorf("The original slice was modified. 1 expected but %d got", len(history))
-	}
+	assert.Len(t, 1, history)
 }
 
 func TestEngine_CloseIdempotency(t *testing.T) {
@@ -89,9 +88,7 @@ func TestEngine_CloseIdempotency(t *testing.T) {
 	eng.Close()
 	eng.Close()
 
-	if counter != 1 {
-		t.Errorf("El CloseAction se ejecutó %d veces, debería ser solo 1", counter)
-	}
+	assert.Equal(t, 1, counter)
 }
 
 func TestEngine_ShutdownMechanism(t *testing.T) {
@@ -107,9 +104,5 @@ func TestEngine_ShutdownMechanism(t *testing.T) {
 
 	cancel()
 
-	select {
-	case <-eng.done:
-	case <-time.After(100 * time.Millisecond):
-		t.Error("Engine failed to close internal 'done' channel")
-	}
+	assert.WillClose(t, eng.done, 100 * time.Millisecond)
 }

@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	assert "github.com/Rafael24595/go-assert/assert/test"
 	"github.com/Rafael24595/go-log/log/provider/stream"
 )
 
@@ -18,26 +19,20 @@ func TestStreamLogger_Integrity(t *testing.T) {
 		Buffer: 10,
 	}.Build(t.Context())
 
-	if err != nil {
-		t.Fatalf("failed to build logger: %v", err)
-	}
+	assert.Nil(t, err)
 
 	for i := range totalLogs {
 		lg.Message(fmt.Sprintf("log numero %d", i))
 	}
 
 	records, err := lg.Close()
-	if err != nil {
-		t.Errorf("error closing logger: %v", err)
-	}
+	assert.Nil(t, err)
 
-	if len(records) != totalLogs {
-		t.Errorf("expected %d records, got %d", totalLogs, len(records))
-	}
+	assert.Len(t, totalLogs, records)
 
 	output := buf.String()
 	lines := strings.Split(strings.TrimSpace(output), "\n")
-	if len(lines) != totalLogs {
-		t.Errorf("expected %d lines in buffer, got %d", totalLogs, len(lines))
-	}
+
+	assert.Nil(t, err)
+	assert.Len(t, totalLogs, lines)
 }

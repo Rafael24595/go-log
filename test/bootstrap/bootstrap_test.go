@@ -2,9 +2,9 @@ package bootstrap_test
 
 import (
 	"bytes"
-	"strings"
 	"testing"
 
+	assert "github.com/Rafael24595/go-assert/assert/test"
 	"github.com/Rafael24595/go-log/log"
 	"github.com/Rafael24595/go-log/log/provider/stream"
 )
@@ -19,17 +19,11 @@ func TestBootstrap_Flush(t *testing.T) {
 	}
 
 	err := log.DefaultFromProvider(t.Context(), p)
-	if err != nil {
-		t.Fatalf("Init failed: %v", err)
-	}
+	assert.Nil(t, err)
 
 	err = log.OnClose()
-	if err != nil {
-		t.Fatalf("Close failed: %v", err)
-	}
+	assert.Nil(t, err)
 
 	output := buf.String()
-	if !strings.Contains(output, "pre-configuration") {
-		t.Error("Bootstrap logs were lost during Init")
-	}
+	assert.Contains(t, output, "pre-configuration")
 }
