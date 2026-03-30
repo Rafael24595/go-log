@@ -200,10 +200,11 @@ import (
 const HTTP_INTERNAL record.Category = "HTTP-INTERNAL"
 
 func main() {
+	writer := go_log.NewWriterFromCategory(go_log.Default(), HTTP_INTERNAL)
 	server := &http.Server{
 		Addr: ":8080",
 		// Capture internal server errors into our "HTTP-INTERNAL" category
-		ErrorLog: log.New(go_log.WriterFromCategory(HTTP_INTERNAL), "", 0),
+		ErrorLog: log.New(writer, "", 0),
 	}
 }
 

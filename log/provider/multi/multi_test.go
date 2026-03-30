@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	assert "github.com/Rafael24595/go-assert/assert/test"
 	"github.com/Rafael24595/go-log/log"
 	log_test "github.com/Rafael24595/go-log/test"
 )
@@ -22,13 +23,9 @@ func TestMultiProvider_BuildSuccess(t *testing.T) {
 	m := New(p1, p2)
 
 	l, err := m.Build(ctx)
-	if err != nil {
-		t.Fatalf("expected no error, got %v", err)
-	}
 
-	if l.Name() != "M1+M2" {
-		t.Errorf("expected name M1+M2, got %s", l.Name())
-	}
+	assert.Nil(t, err)
+	assert.Equal(t, "M1+M2", l.Name())
 }
 
 func TestMultiProvider_BuildFailture(t *testing.T) {
@@ -46,9 +43,7 @@ func TestMultiProvider_BuildFailture(t *testing.T) {
 	m := New(p1, p2)
 
 	_, err := m.Build(ctx)
-	if err == nil {
-		t.Fatal("expected error from failed provider, got nil")
-	}
+	assert.NotNil(t, err)
 }
 
 func TestMultiLogger_MultiplexingReachesAll(t *testing.T) {
@@ -67,12 +62,11 @@ func TestMultiLogger_MultiplexingReachesAll(t *testing.T) {
 	msg := "hello world"
 	ml.Message(msg)
 
-	if len(m1.History) != 1 || m1.History[0].Message != msg {
-		t.Errorf("logger 1 did not receive message")
-	}
-	if len(m2.History) != 1 || m2.History[0].Message != msg {
-		t.Errorf("logger 2 did not receive message")
-	}
+	assert.Len(t, 1, m1.History)
+	assert.Equal(t, msg, m1.History[0].Message)
+
+	assert.Len(t, 1, m2.History)
+	assert.Equal(t, msg, m2.History[0].Message)
 }
 
 func TestMultiLogger_MultiplexingClosesAll(t *testing.T) {
@@ -89,7 +83,7 @@ func TestMultiLogger_MultiplexingClosesAll(t *testing.T) {
 	}
 
 	ml.Close()
-	if !m1.Closed() || !m2.Closed() {
-		t.Error("not all loggers were closed")
-	}
+
+	assert.True(t, m1.Closed())
+	assert.True(t, m2.Closed())
 }
