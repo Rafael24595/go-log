@@ -38,6 +38,8 @@ type Engine struct {
 	name        logger.Logger
 	writeAction WriteAction
 	closeAction CloseAction
+
+	//TODO: Implement records limit.
 	records     []record.Record
 }
 
