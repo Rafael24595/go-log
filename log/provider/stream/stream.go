@@ -11,7 +11,7 @@ import (
 	"github.com/Rafael24595/go-log/log/internal/constants"
 	"github.com/Rafael24595/go-log/log/internal/engine"
 	"github.com/Rafael24595/go-log/log/logger"
-	"github.com/Rafael24595/go-log/log/model/record"
+	"github.com/Rafael24595/go-log/log/record"
 )
 
 // LoggerStream is the default identifier for stream-based loggers.
@@ -21,15 +21,17 @@ const LoggerStream logger.Logger = "Stream"
 // It allows customization of formatting, buffering, and output destination.
 type StreamProvider struct {
 	// Name is the unique identifier for this logger instance.
-	Name        logger.Logger
+	Name logger.Logger
 	// Buffer size for the underlying engine channel.
-	Buffer      int
+	Buffer uint
 	// Format defines how record.Record objects are converted to strings.
-	Format      *format.Format
+	Format *format.Format
 	// Writer is the destination for the logs (e.g., os.Stdout, a file, or a buffer).
-	Writer      io.Writer
+	Writer io.Writer
 	// CloseAction defines a custom cleanup behavior when the logger stops.
 	CloseAction engine.CloseAction
+	// RecordStore allows for optional in-memory storage of records for later retrieval.
+	RecordStore record.Store
 }
 
 // New returns a new, unconfigured StreamProvider as a log.Provider interface.
@@ -38,14 +40,14 @@ func New() log.Provider {
 }
 
 // Build validates the provider configuration and initializes the stream logger engine.
-// It sets default values for Name (Stream), Buffer (from constants), 
+// It sets default values for Name (Stream), Buffer (from constants),
 // Format (Text), and Writer (os.Stdout) if they are not provided.
 func (p StreamProvider) Build(ctx context.Context) (log.Log, error) {
 	if p.Name == "" {
 		p.Name = LoggerStream
 	}
 
-	if p.Buffer <= 0 {
+	if p.Buffer == 0 {
 		p.Buffer = constants.DefaultBufferSize
 	}
 
@@ -61,6 +63,10 @@ func (p StreamProvider) Build(ctx context.Context) (log.Log, error) {
 		p.CloseAction = engine.VoidCloseAction
 	}
 
+	if p.RecordStore == nil {
+		p.RecordStore = record.NewNoOp()
+	}
+
 	return newStreamLogger(
 		ctx,
 		p.Name,
@@ -68,6 +74,7 @@ func (p StreamProvider) Build(ctx context.Context) (log.Log, error) {
 		*p.Format,
 		p.Writer,
 		p.CloseAction,
+		p.RecordStore,
 	)
 }
 
@@ -79,10 +86,11 @@ type streamLogger struct {
 func newStreamLogger(
 	ctx context.Context,
 	name logger.Logger,
-	buffer int,
+	buffer uint,
 	format format.Format,
 	writer io.Writer,
 	closeAction engine.CloseAction,
+	recordStore record.Store,
 ) (log.Log, error) {
 	instance := &streamLogger{
 		format: format,
@@ -90,21 +98,21 @@ func newStreamLogger(
 	}
 
 	return engine.NewEngine(
-		ctx,
 		name,
-		buffer,
-		instance.write,
-		closeAction,
+		engine.WithContext(ctx),
+		engine.WithBufferSize(buffer),
+		engine.WithWriteAction(instance.write),
+		engine.WithCloseAction(closeAction),
+		engine.WithRecordStore(recordStore),
 	)
 }
 
-func (l *streamLogger) write(record record.Record, _ []record.Record) error {
+func (l *streamLogger) write(record record.Record) error {
 	data, err := l.format.Format(record)
 	if err != nil {
 		return err
 	}
 
 	_, err = io.WriteString(l.writer, data+"\n")
-
-	return nil
+	return err
 }

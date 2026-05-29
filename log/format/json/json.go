@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"github.com/Rafael24595/go-log/log/format"
-	"github.com/Rafael24595/go-log/log/model/record"
+	"github.com/Rafael24595/go-log/log/record"
 )
 
 // JsonLineFormat provides a JSON Lines (NDJSON) representation of log records.

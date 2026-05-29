@@ -82,7 +82,7 @@ func TestMultiLogger_MultiplexingClosesAll(t *testing.T) {
 		loggers: []log.Log{m1, m2},
 	}
 
-	ml.Close()
+	assert.Nil(t, ml.Close())
 
 	assert.True(t, m1.Closed())
 	assert.True(t, m2.Closed())

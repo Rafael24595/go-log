@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"github.com/Rafael24595/go-log/log/format"
-	"github.com/Rafael24595/go-log/log/model/record"
+	"github.com/Rafael24595/go-log/log/record"
 )
 
 // TextFormat provides a standard human-readable representation of log records.

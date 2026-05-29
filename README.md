@@ -152,6 +152,24 @@ myFormat := format.Format{
 }
 ```
 
+### 5. Custom Record Storage (Advanced)
+
+By default, the engine uses a `NoOp` store to optimize memory. However, you can inject a custom or in-memory storage layer. This is ideal for scenarios like the Bootstrap logger, where you need to temporarily hold records before flushing them:
+
+```go
+// 1. Create a memory store to retain log entries
+store := record.NewMemory()
+
+// 2. Inject it into the StreamProvider
+provider := stream.StreamProvider{
+	Name:        "AuditableStream",
+	Writer:      os.Stdout,
+	RecordStore: store, // 👈 History will be kept here
+}
+
+// Now you can safely access store.All() anywhere in your application logic
+```
+
 ## Standard Library Bridge (io.Writer)
 
 One of the most versatile features of **Go-Log** is its ability to act as an `io.Writer`. This allows you to plug the asynchronous engine into any standard Go component.
@@ -194,7 +212,7 @@ import (
 	"net/http"
 
 	go_log "github.com/Rafael24595/go-log/log"
-	"github.com/Rafael24595/go-log/log/model/record"
+	"github.com/Rafael24595/go-log/log/record"
 )
 
 const HTTP_INTERNAL record.Category = "HTTP-INTERNAL"
@@ -215,7 +233,7 @@ func main() {
 ## Architecture
 
 The library is built on decoupled components to ensure maximum extensibility:
-- Engine: The core concurrent processor managing the background goroutine and record history.
+- Engine: The core concurrent processor managing the background goroutine. It delegates log history storage to the decoupled `record.Store` abstraction.
 - Providers: High-level abstractions to build specific loggers (Console, File, Stream, Multi).
 - Formats: Serialization logic separated from transport. It uses an injectable function approach (VTable) to allow for both stateless and stateful formatters.
 

@@ -1,7 +1,6 @@
 package log
 
 import (
-	"context"
 	"fmt"
 	"sync/atomic"
 
@@ -12,7 +11,7 @@ import (
 	"github.com/Rafael24595/go-log/log/internal/engine"
 	"github.com/Rafael24595/go-log/log/internal/file"
 	"github.com/Rafael24595/go-log/log/logger"
-	"github.com/Rafael24595/go-log/log/model/record"
+	"github.com/Rafael24595/go-log/log/record"
 )
 
 const loggerBootstrap logger.Logger = "Bootstrap"
@@ -20,17 +19,19 @@ const loggerBootstrap logger.Logger = "Bootstrap"
 type bootstrapLogger struct {
 	Log
 	flushed *atomic.Bool
+	store   record.Store
 }
 
 func newBootstrapLogger() (Bootstrap, error) {
 	flushed := &atomic.Bool{}
+	store := record.NewMemory()
 
 	engine, err := engine.NewEngine(
-		context.Background(),
 		loggerBootstrap,
-		constants.DefaultBufferSize,
-		engine.VoidWriteAction,
-		makeCloseAction(flushed),
+		engine.WithRecordStore(store),
+		engine.WithCloseAction(
+			makeCloseAction(flushed, store),
+		),
 	)
 
 	if err != nil {
@@ -40,14 +41,34 @@ func newBootstrapLogger() (Bootstrap, error) {
 	return &bootstrapLogger{
 		Log:     engine,
 		flushed: flushed,
+		store:   store,
 	}, nil
 }
 
-func makeCloseAction(flushed *atomic.Bool) engine.CloseAction {
+func (l *bootstrapLogger) Flush(target Log) error {
+	if l.flushed.Swap(true) {
+		return nil
+	}
+
+	err := l.Close()
+	if err != nil {
+		return err
+	}
+
+	records := l.store.Drain()
+	if len(records) > 0 {
+		target.Record(records...)
+	}
+
+	return nil
+}
+
+func makeCloseAction(flushed *atomic.Bool, store record.Store) engine.CloseAction {
 	timestamp := clock.UnixMilliClock()
 	json := json.JsonLineFormat
 
-	return func(records []record.Record) error {
+	return func() error {
+		records := store.All()
 		if flushed.Load() || len(records) == 0 {
 			return nil
 		}
@@ -60,27 +81,6 @@ func makeCloseAction(flushed *atomic.Bool) engine.CloseAction {
 		name := fmt.Sprintf("log-unsigned-%s", format.FormatMillisecondsCompact(timestamp))
 		path := fmt.Sprintf("%s/%s.%s", constants.DefaultPath, name, json.Extension)
 
-		file.WriteFileSafe(path, string(data))
-
-		return nil
+		return file.WriteFileSafe(path, string(data))
 	}
-}
-
-func (l *bootstrapLogger) Flush(target Log) error {
-	if l.flushed.Swap(true) {
-		return nil
-	}
-
-	l.flushed.Store(true)
-
-	records, err := l.Close()
-	if err != nil {
-		return err
-	}
-
-	if len(records) > 0 {
-		target.Record(records...)
-	}
-
-	return nil
 }

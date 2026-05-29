@@ -8,7 +8,7 @@ import (
 	"sync"
 
 	"github.com/Rafael24595/go-log/log/logger"
-	"github.com/Rafael24595/go-log/log/model/record"
+	"github.com/Rafael24595/go-log/log/record"
 )
 
 var (
@@ -78,7 +78,7 @@ func DefaultFromLog(target Log) error {
 // OnClose triggers a clean shutdown of the global logger, ensuring
 // all buffered records are written and resources are released.
 func OnClose() error {
-	_, err := log.Close()
+	err := log.Close()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error closing logger: %v\n", err)
 	}
@@ -99,8 +99,6 @@ type Log interface {
 	Name() logger.Logger
 	// Closed returns true if the logger engine has been shut down.
 	Closed() bool
-	// Records returns a slice of all log entries collected by this instance so far.
-	Records() []record.Record
 	// Custom logs a message with a user-defined category string.
 	Custom(string, string) record.Record
 	// Custom logs a message with a user-defined category.
@@ -126,17 +124,12 @@ type Log interface {
 	// Record allows manual insertion of one or more pre-built Record objects.
 	Record(...record.Record) []record.Record
 	// Close gracefully shuts down the logger engine, flushing any pending data.
-	Close() ([]record.Record, error)
+	Close() error
 }
 
 // Name returns the identifier of the current global logger instance.
 func Name() logger.Logger {
 	return log.Name()
-}
-
-// Records returns a slice of all log entries collected by the global logger.
-func Records() []record.Record {
-	return log.Records()
 }
 
 // Custom logs a message with a user-defined category string using the global logger.

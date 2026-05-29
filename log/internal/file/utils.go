@@ -1,6 +1,7 @@
 package file
 
 import (
+	"errors"
 	"io"
 	"os"
 	"path/filepath"
@@ -56,10 +57,10 @@ func WriteFile(filePath, content string) error {
 	return nil
 }
 
-// WriteFileSafe writes content to a temporary file first, then renames it 
-// to the target path. This ensures atomicity: the target file is either 
+// WriteFileSafe writes content to a temporary file first, then renames it
+// to the target path. This ensures atomicity: the target file is either
 // fully updated or remains unchanged if a crash occurs.
-func WriteFileSafe(filePath, content string) error {
+func WriteFileSafe(filePath, content string) (err error) {
 	dir := filepath.Dir(filePath)
 	if err := os.MkdirAll(dir, os.ModePerm); err != nil {
 		return err
@@ -71,11 +72,17 @@ func WriteFileSafe(filePath, content string) error {
 	}
 
 	tmpPath := tmpFile.Name()
-	defer os.Remove(tmpPath)
+
+	defer func() {
+		err = errors.Join(err, os.Remove(tmpPath))
+	}()
 
 	if _, err := tmpFile.Write([]byte(content)); err != nil {
-		tmpFile.Close()
-		return err
+		return errors.Join(err, tmpFile.Close())
+	}
+
+	if err := tmpFile.Sync(); err != nil {
+		return errors.Join(err, tmpFile.Close())
 	}
 
 	if err := tmpFile.Close(); err != nil {
@@ -86,12 +93,12 @@ func WriteFileSafe(filePath, content string) error {
 		return err
 	}
 
-	return tmpFile.Sync()
+	return nil
 }
 
 // AppendFileSafe appends content to a file, creating it if it doesn't exist.
 // It uses Sync() to ensure the data is physically persisted to the disk.
-func AppendFileSafe(filePath, content string) error {
+func AppendFileSafe(filePath, content string)  (err error) {
 	dir := filepath.Dir(filePath)
 	if err := os.MkdirAll(dir, os.ModePerm); err != nil {
 		return err
@@ -101,12 +108,19 @@ func AppendFileSafe(filePath, content string) error {
 	if err != nil {
 		return err
 	}
-	defer f.Close()
+
+	defer func() {
+		err = errors.Join(err, f.Close())
+	}()
 
 	_, err = f.Write([]byte(content))
 	if err != nil {
 		return err
 	}
 
-	return f.Sync()
+	if err := f.Sync(); err != nil {
+		return errors.Join(err, f.Close())
+	}
+
+	return nil
 }
