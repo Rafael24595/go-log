@@ -8,15 +8,19 @@ import (
 
 	assert "github.com/Rafael24595/go-assert/assert/test"
 	"github.com/Rafael24595/go-log/log/provider/stream"
+	"github.com/Rafael24595/go-log/log/record"
 )
 
 func TestStreamLogger_Integrity(t *testing.T) {
 	var buf bytes.Buffer
 	totalLogs := 100
 
+	store := record.NewMemory()
+
 	lg, err := stream.StreamProvider{
-		Writer: &buf,
-		Buffer: 10,
+		Writer:      &buf,
+		Buffer:      10,
+		RecordStore: store,
 	}.Build(t.Context())
 
 	assert.Nil(t, err)
@@ -25,9 +29,10 @@ func TestStreamLogger_Integrity(t *testing.T) {
 		lg.Message(fmt.Sprintf("log numero %d", i))
 	}
 
-	records, err := lg.Close()
+	err = lg.Close()
 	assert.Nil(t, err)
 
+	records := store.All()
 	assert.Len(t, totalLogs, records)
 
 	output := buf.String()

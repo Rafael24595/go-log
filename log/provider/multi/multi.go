@@ -5,7 +5,7 @@ import (
 
 	"github.com/Rafael24595/go-log/log"
 	"github.com/Rafael24595/go-log/log/logger"
-	"github.com/Rafael24595/go-log/log/model/record"
+	"github.com/Rafael24595/go-log/log/record"
 )
 
 // MultiProvider is a composite provider that orchestrates multiple log.Provider instances.
@@ -67,16 +67,6 @@ func (m *multiLogger) Closed() bool {
 		}
 	}
 	return true
-}
-
-// Records aggregates and returns all log entries collected by every 
-// child logger in the orchestration.
-func (m *multiLogger) Records() []record.Record {
-	records := make([]record.Record, 0)
-	for _, l := range m.loggers {
-		records = append(records, l.Records()...)
-	}
-	return records
 }
 
 // Custom logs a message under a user-defined category string.
@@ -199,16 +189,13 @@ func (m *multiLogger) Record(records ...record.Record) []record.Record {
 // Close gracefully shuts down all child loggers. It collects all 
 // flushed records from every child and returns the last encountered 
 // error (if any) during the mass-closing process.
-func (m *multiLogger) Close() ([]record.Record, error) {
-	var allRecords []record.Record
+func (m *multiLogger) Close() error {
 	var lastErr error
-
 	for _, l := range m.loggers {
-		records, err := l.Close()
+		err := l.Close()
 		if err != nil {
 			lastErr = err
 		}
-		allRecords = append(allRecords, records...)
 	}
-	return allRecords, lastErr
+	return lastErr
 }

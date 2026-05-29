@@ -4,29 +4,25 @@ import (
 	"context"
 	"fmt"
 	"strings"
-	"sync"
 	"sync/atomic"
 
 	"github.com/Rafael24595/go-log/log/internal/clock"
 	"github.com/Rafael24595/go-log/log/logger"
-	"github.com/Rafael24595/go-log/log/model/record"
+	"github.com/Rafael24595/go-log/log/record"
 )
 
 // WriteAction defines the function signature for persisting a single record.
-type WriteAction func(record.Record, []record.Record) error
+type WriteAction func(record.Record) error
 
 // CloseAction defines the function signature for cleanup operations when the engine stops.
-type CloseAction func([]record.Record) error
+type CloseAction func() error
 
-func VoidWriteAction(record.Record, []record.Record) error { return nil }
-func VoidCloseAction([]record.Record) error                { return nil }
+func VoidWriteAction(record.Record) error { return nil }
+func VoidCloseAction() error              { return nil }
 
 // Engine is the core concurrent processor for log entries.
 // It handles asynchronous writing via channels and manages a history of records.
 type Engine struct {
-	mu  sync.RWMutex
-	ctx context.Context
-
 	ch     chan record.Record
 	errCh  chan error
 	done   chan struct{}
@@ -39,35 +35,32 @@ type Engine struct {
 	writeAction WriteAction
 	closeAction CloseAction
 
-	//TODO: Implement records limit.
-	records     []record.Record
+	recordStore record.Store
 }
 
 // NewEngine initializes a new engine, starts the background processing loop,
 // and begins watching the provided context for cancellation.
 func NewEngine(
-	ctx context.Context,
 	name logger.Logger,
-	buffer int,
-	writeAction WriteAction,
-	closeAction CloseAction,
+	opts ...Option,
 ) (*Engine, error) {
+	cfg := makeConfig(name, opts...)
 	timestamp := clock.UnixMilliClock()
 
 	logger := &Engine{
-		ch:          make(chan record.Record, buffer),
+		ch:          make(chan record.Record, cfg.buffer),
 		errCh:       make(chan error, 1),
 		done:        make(chan struct{}),
 		clock:       clock.UnixMilliClock,
 		timestamp:   timestamp,
 		name:        name,
-		writeAction: writeAction,
-		closeAction: closeAction,
-		records:     make([]record.Record, 0),
+		writeAction: cfg.writeAction,
+		closeAction: cfg.closeAction,
+		recordStore: cfg.recordStore,
 	}
 
 	go logger.runLoop()
-	go logger.watchExit(ctx)
+	go logger.watchExit(cfg.ctx)
 
 	return logger, nil
 }
@@ -80,19 +73,6 @@ func (l *Engine) Name() logger.Logger {
 // Closed returns true if this engine instance has been shut down.
 func (l *Engine) Closed() bool {
 	return l.closed.Load()
-}
-
-// Records returns a thread-safe copy of all records processed by the engine.
-// It uses a read-lock to allow multiple concurrent readers while preventing
-// data races during background writes.
-func (l *Engine) Records() []record.Record {
-	l.mu.RLock()
-	defer l.mu.RUnlock()
-
-	out := make([]record.Record, len(l.records))
-	copy(out, l.records)
-
-	return out
 }
 
 // Custom processes a message with a specific category string.
@@ -164,19 +144,16 @@ func (l *Engine) Record(records ...record.Record) []record.Record {
 // Close initiates a graceful shutdown. It stops accepting new records,
 // waits for the internal buffer to be processed by the runLoop, and
 // finally executes the CloseAction.
-func (l *Engine) Close() ([]record.Record, error) {
+func (l *Engine) Close() error {
 	var err error
 	if l.closed.CompareAndSwap(false, true) {
 		close(l.ch)
 		<-l.done
 
-		err = l.closeAction(l.records)
+		err = l.closeAction()
 	}
 
-	records := l.records
-	l.records = nil
-
-	return records, err
+	return err
 }
 
 // Done returns a channel that is closed when the engine has fully stopped.
@@ -202,12 +179,15 @@ func (l *Engine) write(category record.Category, message string) record.Record {
 
 func (l *Engine) runLoop() {
 	for record := range l.ch {
-		l.mu.Lock()
-		l.records = append(l.records, record)
-		l.mu.Unlock()
+		err := l.recordStore.Add(record)
+		if err != nil {
+			println(err)
+		}
 
-		//TODO: Manage write error.
-		_ = l.writeAction(record, l.records)
+		err = l.writeAction(record)
+		if err != nil {
+			println(err)
+		}
 	}
 
 	close(l.done)
@@ -216,7 +196,7 @@ func (l *Engine) runLoop() {
 func (l *Engine) watchExit(ctx context.Context) {
 	select {
 	case <-ctx.Done():
-		l.Close()
+		println(l.Close())
 	case <-l.done:
 		return
 	}

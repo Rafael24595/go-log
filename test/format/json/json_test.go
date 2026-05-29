@@ -7,7 +7,7 @@ import (
 
 	assert "github.com/Rafael24595/go-assert/assert/test"
 	fmt_json "github.com/Rafael24595/go-log/log/format/json"
-	"github.com/Rafael24595/go-log/log/model/record"
+	"github.com/Rafael24595/go-log/log/record"
 )
 
 func TestJsonLinesFormat(t *testing.T) {

@@ -1,6 +1,6 @@
 package format
 
-import "github.com/Rafael24595/go-log/log/model/record"
+import "github.com/Rafael24595/go-log/log/record"
 
 // Format defines how one or more log records are serialized into a string.
 // It includes the file extension associated with the specific format.

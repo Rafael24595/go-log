@@ -6,7 +6,7 @@ import (
 
 	"github.com/Rafael24595/go-log/log"
 	"github.com/Rafael24595/go-log/log/logger"
-	"github.com/Rafael24595/go-log/log/model/record"
+	"github.com/Rafael24595/go-log/log/record"
 )
 
 type MockProvider struct {
@@ -90,7 +90,7 @@ func (m *MockLogger) Record(recs ...record.Record) []record.Record {
 	return recs
 }
 
-func (m *MockLogger) Close() ([]record.Record, error) {
+func (m *MockLogger) Close() error {
 	m.Exit = true
-	return m.History, nil
+	return nil
 }

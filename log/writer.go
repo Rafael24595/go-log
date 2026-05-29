@@ -3,7 +3,7 @@ package log
 import (
 	"io"
 
-	"github.com/Rafael24595/go-log/log/model/record"
+	"github.com/Rafael24595/go-log/log/record"
 )
 
 // logWriter is a dynamic proxy that redirects writes to the active global logger.

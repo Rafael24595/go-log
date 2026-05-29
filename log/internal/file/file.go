@@ -70,7 +70,9 @@ func (f *File) Close() error {
 
 func (f *File) reopen() error {
 	if f.file != nil {
-		f.file.Close()
+		if err := f.file.Close(); err != nil {
+			return err
+		}
 	}
 
 	file, err := openFile(f.name, f.flag, f.perm)
