@@ -3,6 +3,7 @@ package engine
 import (
 	"context"
 	"fmt"
+	"os"
 	"strings"
 	"sync/atomic"
 
@@ -181,12 +182,12 @@ func (l *Engine) runLoop() {
 	for record := range l.ch {
 		err := l.recordStore.Add(record)
 		if err != nil {
-			println(err)
+			fmt.Fprintln(os.Stderr, err)
 		}
 
 		err = l.writeAction(record)
 		if err != nil {
-			println(err)
+			fmt.Fprintln(os.Stderr, err)
 		}
 	}
 
@@ -196,7 +197,9 @@ func (l *Engine) runLoop() {
 func (l *Engine) watchExit(ctx context.Context) {
 	select {
 	case <-ctx.Done():
-		println(l.Close())
+		if err := l.Close(); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+		}
 	case <-l.done:
 		return
 	}
