@@ -6,7 +6,8 @@ import (
 	"sync/atomic"
 	"testing"
 
-	assert "github.com/Rafael24595/go-assert/assert/test"
+	"github.com/Rafael24595/go-assert/assert"
+	"github.com/Rafael24595/go-assert/require"
 	"github.com/Rafael24595/go-log/log/internal/paths"
 	"github.com/Rafael24595/go-log/log/record"
 )
@@ -26,13 +27,13 @@ func TestBootstrapClose_WritesUnflushedRecordsToTheBootstrapDir(t *testing.T) {
 	files, err := filepath.Glob(filepath.Join(dir, "log-unsigned-*.jsonl"))
 	assert.Nil(t, err)
 
-	assert.Len(t, 1, files)
+	require.Size(t, 1, files)
 
 	data, err := os.ReadFile(files[0])
 
 	assert.Nil(t, err)
 
-	assert.Contains(t, string(data), "lost before configuring")
+	assert.Inside(t, "lost before configuring", string(data))
 }
 
 func TestBootstrapClose_WritesNothingOnceFlushed(t *testing.T) {
@@ -51,5 +52,5 @@ func TestBootstrapClose_WritesNothingOnceFlushed(t *testing.T) {
 	assert.Nil(t, err)
 
 	files, _ := filepath.Glob(filepath.Join(dir, "*"))
-	assert.Len(t, 0, files)
+	assert.Size(t, 0, files)
 }

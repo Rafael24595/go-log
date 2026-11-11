@@ -4,8 +4,10 @@ import (
 	"context"
 	"testing"
 
-	assert "github.com/Rafael24595/go-assert/assert/test"
+	"github.com/Rafael24595/go-assert/assert"
+	"github.com/Rafael24595/go-assert/require"
 	"github.com/Rafael24595/go-log/log"
+
 	log_test "github.com/Rafael24595/go-log/test"
 )
 
@@ -62,10 +64,10 @@ func TestMultiLogger_MultiplexingReachesAll(t *testing.T) {
 	msg := "hello world"
 	ml.Message(msg)
 
-	assert.Len(t, 1, m1.History)
+	require.Size(t, 1, m1.History)
 	assert.Equal(t, msg, m1.History[0].Message)
 
-	assert.Len(t, 1, m2.History)
+	require.Size(t, 1, m2.History)
 	assert.Equal(t, msg, m2.History[0].Message)
 }
 

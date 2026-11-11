@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"testing"
 
-	assert "github.com/Rafael24595/go-assert/assert/test"
+	"github.com/Rafael24595/go-assert/assert"
 	"github.com/Rafael24595/go-log/log"
 	"github.com/Rafael24595/go-log/log/provider/stream"
 )
@@ -25,5 +25,5 @@ func TestBootstrap_Flush(t *testing.T) {
 	assert.Nil(t, err)
 
 	output := buf.String()
-	assert.Contains(t, output, "pre-configuration")
+	assert.Inside(t, "pre-configuration", output)
 }

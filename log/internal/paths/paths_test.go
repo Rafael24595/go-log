@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	assert "github.com/Rafael24595/go-assert/assert/test"
+	"github.com/Rafael24595/go-assert/assert"
 )
 
 func TestBootstrapDir_EnvironmentOverride(t *testing.T) {

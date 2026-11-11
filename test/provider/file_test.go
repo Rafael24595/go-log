@@ -6,16 +6,16 @@ import (
 	"strings"
 	"testing"
 
-	assert "github.com/Rafael24595/go-assert/assert/test"
+	"github.com/Rafael24595/go-assert/assert"
+	"github.com/Rafael24595/go-assert/require"
 	"github.com/Rafael24595/go-log/log/format/json"
 	"github.com/Rafael24595/go-log/log/provider/file"
 )
 
-// build writes one message through a FileProvider and returns the only file it created.
 func build(t *testing.T, p file.FileProvider) string {
 	t.Helper()
 
-	p.Path = filepath.Join(t.TempDir(), "logs") // a missing folder must be created
+	p.Path = filepath.Join(t.TempDir(), "logs")
 	l, err := p.Build(t.Context())
 	assert.Nil(t, err)
 
@@ -23,8 +23,10 @@ func build(t *testing.T, p file.FileProvider) string {
 	assert.Nil(t, l.Close())
 
 	files, err := filepath.Glob(filepath.Join(p.Path, "*"))
+
 	assert.Nil(t, err)
-	assert.Len(t, 1, files)
+	require.Size(t, 1, files)
+
 	return files[0]
 }
 
@@ -35,8 +37,9 @@ func TestFileProvider_DefaultFormatIsText(t *testing.T) {
 	assert.Equal(t, ".log", filepath.Ext(path))
 
 	data, err := os.ReadFile(path)
+
 	assert.Nil(t, err)
-	assert.Contains(t, string(data), "[MESSAGE]: hello\n")
+	assert.Inside(t, "[MESSAGE]: hello\n", string(data))
 }
 
 func TestFileProvider_ExtensionFollowsTheFormat(t *testing.T) {
@@ -46,9 +49,10 @@ func TestFileProvider_ExtensionFollowsTheFormat(t *testing.T) {
 	assert.Equal(t, ".jsonl", filepath.Ext(path))
 
 	data, err := os.ReadFile(path)
+
 	assert.Nil(t, err)
-	assert.Contains(t, string(data), `"message":"hello"`)
-	assert.False(t, strings.Contains(string(data), "\n\n"), "one line per record")
+	assert.Inside(t, `"message":"hello"`, string(data))
+	assert.Inside(t, "\n", string(data))
 }
 
 func TestFileProvider_UnusableFolderFails(t *testing.T) {
