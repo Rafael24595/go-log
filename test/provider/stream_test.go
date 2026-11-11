@@ -1,4 +1,4 @@
-package stream_test
+package provider
 
 import (
 	"bytes"
@@ -36,8 +36,9 @@ func TestStreamLogger_Integrity(t *testing.T) {
 	assert.Len(t, totalLogs, records)
 
 	output := buf.String()
-	lines := strings.Split(strings.TrimSpace(output), "\n")
+	lines := strings.Split(output, "\n")
 
 	assert.Nil(t, err)
-	assert.Len(t, totalLogs, lines)
+	assert.Len(t, totalLogs+1, lines)
+	assert.Equal(t, lines[len(lines)-1], "")
 }

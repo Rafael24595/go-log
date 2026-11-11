@@ -7,6 +7,7 @@ import "github.com/Rafael24595/go-log/log/record"
 type Format struct {
 	// Extension returns the file suffix (json, log, etc.)
 	Extension string
-	// Format converts records into a string
-	Format    func(records ...record.Record) (string, error)
+	// Format serialises the records. The result is written as it is, so the
+	// format decides the line breaks: end each record with "\n" to get one per line.
+	Format func(records ...record.Record) (string, error)
 }

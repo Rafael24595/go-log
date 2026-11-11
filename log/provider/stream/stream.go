@@ -113,6 +113,6 @@ func (l *streamLogger) write(record record.Record) error {
 		return err
 	}
 
-	_, err = io.WriteString(l.writer, data+"\n")
+	_, err = io.WriteString(l.writer, data)
 	return err
 }
