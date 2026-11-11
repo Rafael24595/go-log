@@ -31,7 +31,7 @@ package main
 
 import (
 	"context"
-    "fmt"
+	"fmt"
 
 	"github.com/Rafael24595/go-log/log"
 	"github.com/Rafael24595/go-log/log/format/json"
@@ -79,6 +79,48 @@ One of the most powerful features of this library is the **Bootstrap mechanism**
 1. It buffers the records in an internal **Bootstrap** memory.
 2. Once `DefaultFromProvider` is called, all previously buffered records are automatically flushed into the new logger.
 3. This ensures you never lose critical startup logs.
+
+If the program ends without ever configuring a logger, the buffered records are not lost either: `log.OnClose()` saves them as JSON Lines to `log-unsigned-<timestamp>.jsonl` in the **go-log folder** of the running program (see [Where files go](#where-files-go)). Records are only kept until the first `DefaultFromProvider`; once they have been flushed into a logger, nothing is written there.
+
+## Providers
+
+| Provider | Writes to | Notes |
+|:--|:--|:--|
+| `console.New()` / `console.ConsoleProvider` | standard output | Text format by default. |
+| `stream.StreamProvider` | any `io.Writer` | Text format and `os.Stdout` by default. |
+| `file.FileProvider` | one new file per `Build` | See below. |
+| `multi.New(...)` | every child provider | If one child fails to build, the ones already built are closed and the error is returned. |
+
+### File Provider
+
+```go
+file.FileProvider{
+	Path:    "/var/log/myapp", // folder for the files; created if missing
+	Session: "api-v1",         // part of the file name
+	Format:  &json.JsonLineFormat,
+}
+```
+
+- Each `Build` creates a new file named `log-<session>-<timestamp>.<extension>`, where the extension comes from the format (`log` for text, `jsonl` for JSON Lines).
+- Without a `Path`, the file goes to the **go-log folder** of the running program (see [Where files go](#where-files-go)), never to the working directory.
+- Old files are not removed: clean up the folder yourself if the program starts often.
+
+### Where files go
+
+When go-log has to choose a folder itself (the unsigned bootstrap log, or a `FileProvider` without `Path`), it uses, in this order:
+
+1. the folder in the `GO_LOG_DIR` environment variable, when it is set;
+2. `go-log/<program>` inside the user's cache folder:
+
+| System | Folder |
+|:--|:--|
+| Windows | `%LocalAppData%\go-log\<program>` |
+| Linux | `$XDG_CACHE_HOME/go-log/<program>`, or `~/.cache/go-log/<program>` |
+| macOS | `~/Library/Caches/go-log/<program>` |
+
+3. `go-log/<program>` inside the temporary folder, if there is no cache folder.
+
+`<program>` is the executable name without its extension, so different programs never mix their files. The working directory is never used: where the program was started from does not change where its logs end up.
 
 ## Extensibility: Custom Implementations
 
@@ -133,6 +175,8 @@ func (m *MyCustomLogger) Error(err error) record.Record { /* ... */ }
 
 ### 4. Custom Formats
 
+A format turns records into text, and that text is written **exactly as returned**: the format decides the line breaks. End each record with `"\n"` to get one record per line, as the built-in Text and JSON Lines formats do. `Extension` is used for the file name when the format is given to a `FileProvider`.
+
 Since the Format system uses a struct with function pointers (vtable), you can create stateful formatters by injecting instance methods. This is useful for CSV headers, counters, or complex encodings:
 
 ```go
@@ -141,14 +185,18 @@ type AuditFormatter struct {
 }
 
 func (f *AuditFormatter) Serialize(records ...record.Record) (string, error) {
-    // Custom logic using f.AppID
-    return formattedString, nil
+    var b strings.Builder
+    for _, r := range records {
+        fmt.Fprintf(&b, "%s|%s|%s\n", f.AppID, r.Category, r.Message) // one line per record
+    }
+    return b.String(), nil
 }
 
 // Usage:
+audit := &AuditFormatter{AppID: "billing"}
 myFormat := format.Format{
     Extension: "audit",
-    Format:    auditInst.Serialize, // Injecting the method
+    Format:    audit.Serialize, // Injecting the method
 }
 ```
 
@@ -218,7 +266,9 @@ import (
 const HTTP_INTERNAL record.Category = "HTTP-INTERNAL"
 
 func main() {
-	writer := go_log.NewWriterFromCategory(go_log.Default(), HTTP_INTERNAL)
+	// WriterFromCategory follows the current logger, so it keeps working
+	// after DefaultFromProvider replaces the bootstrap logger.
+	writer := go_log.WriterFromCategory(HTTP_INTERNAL)
 	server := &http.Server{
 		Addr: ":8080",
 		// Capture internal server errors into our "HTTP-INTERNAL" category
@@ -241,6 +291,6 @@ The library is built on decoupled components to ensure maximum extensibility:
 
 ## Thread Safety & Reliability
 
-- Concurrent-Safe: All providers use internal Mutexes and Atomic Booleans to manage state across multiple goroutines.
-- Graceful Shutdown: The Close() method ensures that all pending records in the channel are processed before the engine shuts down.
+- Concurrent-Safe: All providers use internal Mutexes and Atomic Booleans to manage state across multiple goroutines. Logging while another goroutine closes the logger is safe: records written after `Close()` are dropped, never a panic.
+- Graceful Shutdown: The Close() method ensures that all pending records in the channel are processed before the engine shuts down. Records are kept in memory until then, so call `log.OnClose()` before the program exits; a crash can lose the last ones.
 - Atomic Writes: Includes utilities for atomic file writes (write-then-rename) to prevent file corruption during system crashes.
