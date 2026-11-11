@@ -2,6 +2,7 @@ package multi
 
 import (
 	"context"
+	"errors"
 
 	"github.com/Rafael24595/go-log/log"
 	"github.com/Rafael24595/go-log/log/logger"
@@ -21,7 +22,7 @@ func New(providers ...log.Provider) log.Provider {
 	}
 }
 
-// Build initializes all child providers concurrently. It returns a multiLogger 
+// Build initializes all child providers concurrently. It returns a multiLogger
 // that multiplexes every log call to all successfully built underlying loggers.
 // If one child fails to build, the error is returned immediately.
 func (p MultiProvider) Build(ctx context.Context) (log.Log, error) {
@@ -30,14 +31,24 @@ func (p MultiProvider) Build(ctx context.Context) (log.Log, error) {
 	for _, provider := range p.Providers {
 		l, err := provider.Build(ctx)
 		if err != nil {
-			return nil, err
+			closeErr := closeLoggers(loggers)
+			return nil, errors.Join(err, closeErr)
 		}
+		
 		loggers = append(loggers, l)
 	}
 
 	return &multiLogger{
 		loggers: loggers,
 	}, nil
+}
+
+func closeLoggers(loggers []log.Log) error {
+	var err error
+	for _, l := range loggers {
+		err = errors.Join(err, l.Close())
+	}
+	return err
 }
 
 type multiLogger struct {
