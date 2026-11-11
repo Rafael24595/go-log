@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"sync"
 	"sync/atomic"
 
 	"github.com/Rafael24595/go-log/log/internal/clock"
@@ -24,6 +25,8 @@ func VoidCloseAction() error              { return nil }
 // Engine is the core concurrent processor for log entries.
 // It handles asynchronous writing via channels and manages a history of records.
 type Engine struct {
+	rw sync.RWMutex
+
 	ch     chan record.Record
 	errCh  chan error
 	done   chan struct{}
@@ -136,6 +139,13 @@ func (e *Engine) Errorf(format string, a ...any) record.Record {
 // Record sends one or more pre-built records directly into the engine's channel.
 // This is useful for re-logging records from a bootstrap or buffer.
 func (e *Engine) Record(records ...record.Record) []record.Record {
+	e.rw.RLock()
+	defer e.rw.RUnlock()
+
+	if e.closed.Load() {
+		return records
+	}
+
 	for _, record := range records {
 		e.ch <- record
 	}
@@ -145,16 +155,22 @@ func (e *Engine) Record(records ...record.Record) []record.Record {
 // Close initiates a graceful shutdown. It stops accepting new records,
 // waits for the internal buffer to be processed by the runLoop, and
 // finally executes the CloseAction.
-func (e *Engine) Close() error {
-	var err error
-	if e.closed.CompareAndSwap(false, true) {
-		close(e.ch)
-		<-e.done
+func (l *Engine) Close() error {
+	l.rw.Lock()
 
-		err = e.closeAction()
+	closing := l.closed.CompareAndSwap(false, true)
+	if closing {
+		close(l.ch)
 	}
 
-	return err
+	l.rw.Unlock()
+
+	if !closing {
+		return nil
+	}
+
+	<-l.done
+	return l.closeAction()
 }
 
 // Done returns a channel that is closed when the engine has fully stopped.
@@ -168,6 +184,9 @@ func (e *Engine) write(category record.Category, message string) record.Record {
 		Message:   message,
 		Timestamp: e.clock(),
 	}
+
+	e.rw.RLock()
+	defer e.rw.RUnlock()
 
 	if e.closed.Load() {
 		return record
