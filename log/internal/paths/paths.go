@@ -3,6 +3,7 @@ package paths
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 )
 
@@ -31,11 +32,18 @@ func BootstrapDir() string {
 // programName is the running executable's name without its extension,
 // so records from different programs do not mix.
 func programName() string {
-	exe, err := os.Executable()
+	file, err := os.Executable()
 	if err != nil {
 		return "unknown"
 	}
 
-	name := filepath.Base(exe)
-	return strings.TrimSuffix(name, filepath.Ext(name))
+	name := filepath.Base(file)
+	
+	ext := filepath.Ext(name)
+	if runtime.GOOS == "windows" && strings.EqualFold(ext, ".exe") {
+		name = strings.TrimSuffix(name, filepath.Ext(name))
+	}
+
+	name = strings.TrimSuffix(name, ext)
+	return strings.ReplaceAll(name, ".", "_")
 }

@@ -34,5 +34,5 @@ func TestProgramName_HasNoExtension(t *testing.T) {
 	name := programName()
 
 	assert.NotEqual(t, "", name)
-	assert.NotEqual(t, "", filepath.Ext(name))
+	assert.Equal(t, "", filepath.Ext(name))
 }
