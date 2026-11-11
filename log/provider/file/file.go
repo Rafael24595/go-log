@@ -2,8 +2,10 @@ package file
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/Rafael24595/go-log/log"
 	"github.com/Rafael24595/go-log/log/format"
@@ -50,15 +52,25 @@ func (p FileProvider) Build(ctx context.Context) (log.Log, error) {
 		p.Path = constants.DefaultPath
 	}
 
-	name := fmt.Sprintf("log-%s-%s", p.Session, format.FormatMillisecondsCompact(timestamp))
-	source := fmt.Sprintf("%s/%s.%s", p.Path, name, text.TextFormat.Extension)
+	if p.Format == nil {
+		p.Format = &text.TextFormat
+	}
+
+	name := fmt.Sprintf(
+		"log-%s-%s.%s",
+		p.Session,
+		format.FormatMillisecondsCompact(timestamp),
+		p.Format.Extension,
+	)
+
+	source := filepath.Join(p.Path, name)
 
 	file, err := file.NewFile(source, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o644)
 	if err != nil {
 		return nil, err
 	}
 
-	return stream.StreamProvider{
+	l, err := stream.StreamProvider{
 		Name:        LoggerFile,
 		Buffer:      p.Buffer,
 		Format:      p.Format,
@@ -66,6 +78,12 @@ func (p FileProvider) Build(ctx context.Context) (log.Log, error) {
 		CloseAction: makeCloseAction(file),
 		RecordStore: p.RecordStore,
 	}.Build(ctx)
+
+	if err != nil {
+		return nil, errors.Join(err, file.Close())
+	}
+
+	return l, nil
 }
 
 func makeCloseAction(file *file.File) engine.CloseAction {
