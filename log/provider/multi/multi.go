@@ -74,7 +74,7 @@ func (m *multiLogger) Name() logger.Logger {
 func (m *multiLogger) Closed() bool {
 	for _, l := range m.loggers {
 		if !l.Closed() {
-			return true
+			return false
 		}
 	}
 	return true
