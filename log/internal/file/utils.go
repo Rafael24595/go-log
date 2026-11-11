@@ -74,7 +74,9 @@ func WriteFileSafe(filePath, content string) (err error) {
 	tmpPath := tmpFile.Name()
 
 	defer func() {
-		err = errors.Join(err, os.Remove(tmpPath))
+		if err != nil {
+			err = errors.Join(err, os.Remove(tmpPath))
+		}
 	}()
 
 	if _, err := tmpFile.Write([]byte(content)); err != nil {
