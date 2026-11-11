@@ -2,6 +2,7 @@ package log
 
 import (
 	"fmt"
+	"path/filepath"
 	"sync/atomic"
 
 	"github.com/Rafael24595/go-log/log/format"
@@ -78,8 +79,13 @@ func makeCloseAction(flushed *atomic.Bool, store record.Store) engine.CloseActio
 			return err
 		}
 
-		name := fmt.Sprintf("log-unsigned-%s", format.FormatMillisecondsCompact(timestamp))
-		path := fmt.Sprintf("%s/%s.%s", constants.DefaultPath, name, json.Extension)
+		name := fmt.Sprintf(
+			"log-unsigned-%s.%s", 
+			format.FormatMillisecondsCompact(timestamp), 
+			json.Extension,
+		)
+		
+		path := filepath.Join(constants.DefaultPath, name)
 
 		return file.WriteFileSafe(path, string(data))
 	}
