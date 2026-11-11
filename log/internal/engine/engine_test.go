@@ -9,8 +9,7 @@ import (
 	"time"
 
 	"github.com/Rafael24595/go-log/log/record"
-
-	assert "github.com/Rafael24595/go-assert/assert/test"
+	"github.com/Rafael24595/go-assert/assert"
 )
 
 func TestEngine_Concurrency(t *testing.T) {
@@ -55,12 +54,12 @@ func TestEngine_Concurrency(t *testing.T) {
 	assert.Nil(t, err)
 
 	records := store.All()
-	assert.Len(t, totalExpected, records)
+	assert.Size(t, totalExpected, records)
 }
 
 func TestEngine_RecordsImmutability(t *testing.T) {
 	store := record.NewMemory()
-	
+
 	eng, _ := NewEngine(
 		"InternalTest",
 		WithContext(
@@ -78,7 +77,7 @@ func TestEngine_RecordsImmutability(t *testing.T) {
 	eng.Message("Log 2")
 	time.Sleep(1 * time.Millisecond)
 
-	assert.Len(t, 1, history)
+	assert.Size(t, 1, history)
 }
 
 func TestEngine_CloseIdempotency(t *testing.T) {

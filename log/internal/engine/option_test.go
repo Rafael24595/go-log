@@ -4,7 +4,8 @@ import (
 	"context"
 	"testing"
 
-	assert "github.com/Rafael24595/go-assert/assert/test"
+	"github.com/Rafael24595/go-assert/assert"
+	"github.com/Rafael24595/go-assert/require"
 	"github.com/Rafael24595/go-log/log/internal/constants"
 	"github.com/Rafael24595/go-log/log/logger"
 	"github.com/Rafael24595/go-log/log/record"
@@ -15,9 +16,11 @@ const testLogger logger.Logger = "TestEngine"
 func TestDefaultConfig(t *testing.T) {
 	cfg := defaultConfig(testLogger)
 
-	assert.NotNil(t, cfg.ctx)
+	require.NotNil(t, cfg.ctx)
+
 	assert.True(t, cfg.name == testLogger)
 	assert.True(t, cfg.buffer == constants.DefaultBufferSize)
+	
 	assert.NotNil(t, cfg.writeAction)
 	assert.NotNil(t, cfg.closeAction)
 	assert.NotNil(t, cfg.recordStore)
@@ -97,7 +100,7 @@ func TestWithRecordStoreOption(t *testing.T) {
 
 func TestMakeConfigIntegration(t *testing.T) {
 	ctx := context.TODO()
-	
+
 	cfg := makeConfig(testLogger,
 		WithBufferSize(100),
 		WithContext(ctx),

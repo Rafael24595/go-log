@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"sync"
 	"sync/atomic"
 
 	"github.com/Rafael24595/go-log/log/internal/clock"
@@ -24,6 +25,8 @@ func VoidCloseAction() error              { return nil }
 // Engine is the core concurrent processor for log entries.
 // It handles asynchronous writing via channels and manages a history of records.
 type Engine struct {
+	rw sync.RWMutex
+
 	ch     chan record.Record
 	errCh  chan error
 	done   chan struct{}
@@ -67,77 +70,84 @@ func NewEngine(
 }
 
 // Name returns the unique identifier assigned to this engine instance.
-func (l *Engine) Name() logger.Logger {
-	return l.name
+func (e *Engine) Name() logger.Logger {
+	return e.name
 }
 
 // Closed returns true if this engine instance has been shut down.
-func (l *Engine) Closed() bool {
-	return l.closed.Load()
+func (e *Engine) Closed() bool {
+	return e.closed.Load()
 }
 
 // Custom processes a message with a specific category string.
 // It automatically converts the category to uppercase for consistency.
-func (l *Engine) Custom(category string, message string) record.Record {
+func (e *Engine) Custom(category string, message string) record.Record {
 	upperCategory := strings.ToUpper(category)
-	return l.Customc(record.Category(upperCategory), message)
+	return e.Customc(record.Category(upperCategory), message)
 }
 
 // Custom processes a message with a specific category.
-func (l *Engine) Customc(category record.Category, message string) record.Record {
-	return l.write(category, message)
+func (e *Engine) Customc(category record.Category, message string) record.Record {
+	return e.write(category, message)
 }
 
 // Custome is a helper that logs a custom category using an error's message.
-func (l *Engine) Custome(category string, err error) record.Record {
-	return l.Custom(category, err.Error())
+func (e *Engine) Custome(category string, err error) record.Record {
+	return e.Custom(category, err.Error())
 }
 
 // Customf logs a formatted custom message.
-func (l *Engine) Customf(category string, format string, a ...any) record.Record {
-	return l.Custom(category, fmt.Sprintf(format, a...))
+func (e *Engine) Customf(category string, format string, a ...any) record.Record {
+	return e.Custom(category, fmt.Sprintf(format, a...))
 }
 
 // Message dispatches an informational record to the processing loop.
-func (l *Engine) Message(message string) record.Record {
-	return l.write(record.MESSAGE, message)
+func (e *Engine) Message(message string) record.Record {
+	return e.write(record.MESSAGE, message)
 }
 
 // Messagef dispatches a formatted informational record.
-func (l *Engine) Messagef(format string, a ...any) record.Record {
-	return l.Message(fmt.Sprintf(format, a...))
+func (e *Engine) Messagef(format string, a ...any) record.Record {
+	return e.Message(fmt.Sprintf(format, a...))
 }
 
 // Warning dispatches a warning record to the processing loop.
-func (l *Engine) Warning(message string) record.Record {
-	return l.write(record.WARNING, message)
+func (e *Engine) Warning(message string) record.Record {
+	return e.write(record.WARNING, message)
 }
 
 // Warningf dispatches a formatted warning record.
-func (l *Engine) Warningf(format string, a ...any) record.Record {
-	return l.Warning(fmt.Sprintf(format, a...))
+func (e *Engine) Warningf(format string, a ...any) record.Record {
+	return e.Warning(fmt.Sprintf(format, a...))
 }
 
 // Error dispatches a record based on a standard Go error.
-func (l *Engine) Error(err error) record.Record {
-	return l.Errors(err.Error())
+func (e *Engine) Error(err error) record.Record {
+	return e.Errors(err.Error())
 }
 
 // Errors dispatches an error record using a string message.
-func (l *Engine) Errors(message string) record.Record {
-	return l.write(record.ERROR, message)
+func (e *Engine) Errors(message string) record.Record {
+	return e.write(record.ERROR, message)
 }
 
 // Errorf dispatches a formatted error record.
-func (l *Engine) Errorf(format string, a ...any) record.Record {
-	return l.Errors(fmt.Sprintf(format, a...))
+func (e *Engine) Errorf(format string, a ...any) record.Record {
+	return e.Errors(fmt.Sprintf(format, a...))
 }
 
 // Record sends one or more pre-built records directly into the engine's channel.
 // This is useful for re-logging records from a bootstrap or buffer.
-func (l *Engine) Record(records ...record.Record) []record.Record {
+func (e *Engine) Record(records ...record.Record) []record.Record {
+	e.rw.RLock()
+	defer e.rw.RUnlock()
+
+	if e.closed.Load() {
+		return records
+	}
+
 	for _, record := range records {
-		l.ch <- record
+		e.ch <- record
 	}
 	return records
 }
@@ -146,61 +156,70 @@ func (l *Engine) Record(records ...record.Record) []record.Record {
 // waits for the internal buffer to be processed by the runLoop, and
 // finally executes the CloseAction.
 func (l *Engine) Close() error {
-	var err error
-	if l.closed.CompareAndSwap(false, true) {
-		close(l.ch)
-		<-l.done
+	l.rw.Lock()
 
-		err = l.closeAction()
+	closing := l.closed.CompareAndSwap(false, true)
+	if closing {
+		close(l.ch)
 	}
 
-	return err
+	l.rw.Unlock()
+
+	if !closing {
+		return nil
+	}
+
+	<-l.done
+	return l.closeAction()
 }
 
 // Done returns a channel that is closed when the engine has fully stopped.
-func (l *Engine) Done() <-chan struct{} {
-	return l.done
+func (e *Engine) Done() <-chan struct{} {
+	return e.done
 }
 
-func (l *Engine) write(category record.Category, message string) record.Record {
+func (e *Engine) write(category record.Category, message string) record.Record {
 	record := record.Record{
 		Category:  category,
 		Message:   message,
-		Timestamp: l.clock(),
+		Timestamp: e.clock(),
 	}
 
-	if l.closed.Load() {
+	e.rw.RLock()
+	defer e.rw.RUnlock()
+
+	if e.closed.Load() {
 		return record
 	}
 
-	l.ch <- record
+	e.ch <- record
 
 	return record
 }
 
-func (l *Engine) runLoop() {
-	for record := range l.ch {
-		err := l.recordStore.Add(record)
+func (e *Engine) runLoop() {
+	for record := range e.ch {
+		err := e.recordStore.Add(record)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
 		}
 
-		err = l.writeAction(record)
+		err = e.writeAction(record)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
 		}
 	}
 
-	close(l.done)
+	close(e.done)
 }
 
-func (l *Engine) watchExit(ctx context.Context) {
+func (e *Engine) watchExit(ctx context.Context) {
 	select {
 	case <-ctx.Done():
-		if err := l.Close(); err != nil {
+		if err := e.Close(); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 		}
-	case <-l.done:
+	case <-e.done:
 		return
 	}
 }

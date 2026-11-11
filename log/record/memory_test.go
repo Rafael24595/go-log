@@ -5,7 +5,8 @@ import (
 	"sync"
 	"testing"
 
-	assert "github.com/Rafael24595/go-assert/assert/test"
+	"github.com/Rafael24595/go-assert/assert"
+	"github.com/Rafael24595/go-assert/require"
 )
 
 func TestMemoryStore_SaveAndRetrieve(t *testing.T) {
@@ -13,11 +14,14 @@ func TestMemoryStore_SaveAndRetrieve(t *testing.T) {
 
 	err := store.Add(Record{Message: "first_log"})
 	assert.Nil(t, err)
+
 	err = store.Add(Record{Message: "second_log"})
 	assert.Nil(t, err)
 
 	records := store.All()
-	assert.Len(t, 2, records)
+
+	require.Size(t, 2, records)
+
 	assert.True(t, records[0].Message == "first_log")
 	assert.True(t, records[1].Message == "second_log")
 }
@@ -27,10 +31,11 @@ func TestMemoryStore_Drain(t *testing.T) {
 	_ = store.Add(Record{Message: "ephemeral_log"})
 
 	extracted := store.Drain()
-	assert.Len(t, 1, extracted)
+
+	require.Size(t, 1, extracted)
 	assert.True(t, extracted[0].Message == "ephemeral_log")
 
-	assert.Len(t, 0, store.All())
+	assert.Size(t, 0, store.All())
 }
 
 func TestMemoryStore_Immutability(t *testing.T) {
@@ -59,5 +64,5 @@ func TestMemoryStore_Concurrency(t *testing.T) {
 
 	wg.Wait()
 
-	assert.Len(t, routines*logs, store.All())
+	assert.Size(t, routines*logs, store.All())
 }

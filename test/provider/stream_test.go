@@ -1,4 +1,4 @@
-package stream_test
+package provider
 
 import (
 	"bytes"
@@ -6,7 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	assert "github.com/Rafael24595/go-assert/assert/test"
+	"github.com/Rafael24595/go-assert/assert"
+	"github.com/Rafael24595/go-assert/require"
 	"github.com/Rafael24595/go-log/log/provider/stream"
 	"github.com/Rafael24595/go-log/log/record"
 )
@@ -33,11 +34,12 @@ func TestStreamLogger_Integrity(t *testing.T) {
 	assert.Nil(t, err)
 
 	records := store.All()
-	assert.Len(t, totalLogs, records)
+	assert.Size(t, totalLogs, records)
 
 	output := buf.String()
-	lines := strings.Split(strings.TrimSpace(output), "\n")
+	lines := strings.Split(output, "\n")
 
 	assert.Nil(t, err)
-	assert.Len(t, totalLogs, lines)
+	require.Size(t, totalLogs+1, lines)
+	assert.Equal(t, lines[len(lines)-1], "")
 }

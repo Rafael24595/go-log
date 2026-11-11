@@ -17,12 +17,12 @@ var TextFormat = format.Format{
 			return "", nil
 		}
 
-		lines := make([]string, len(records))
-		for i, r := range records {
+		var b strings.Builder
+		for _, r := range records {
 			timestamp := format.FormatMilliseconds(r.Timestamp)
-			lines[i] = fmt.Sprintf("%s - [%s]: %s", timestamp, r.Category, r.Message)
+			fmt.Fprintf(&b, "%s - [%s]: %s\n", timestamp, r.Category, r.Message)
 		}
-
-		return strings.Join(lines, "\n"), nil
+		
+		return b.String(), nil
 	},
 }

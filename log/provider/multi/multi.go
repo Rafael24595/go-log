@@ -2,6 +2,7 @@ package multi
 
 import (
 	"context"
+	"errors"
 
 	"github.com/Rafael24595/go-log/log"
 	"github.com/Rafael24595/go-log/log/logger"
@@ -21,7 +22,7 @@ func New(providers ...log.Provider) log.Provider {
 	}
 }
 
-// Build initializes all child providers concurrently. It returns a multiLogger 
+// Build initializes all child providers concurrently. It returns a multiLogger
 // that multiplexes every log call to all successfully built underlying loggers.
 // If one child fails to build, the error is returned immediately.
 func (p MultiProvider) Build(ctx context.Context) (log.Log, error) {
@@ -30,14 +31,24 @@ func (p MultiProvider) Build(ctx context.Context) (log.Log, error) {
 	for _, provider := range p.Providers {
 		l, err := provider.Build(ctx)
 		if err != nil {
-			return nil, err
+			closeErr := closeLoggers(loggers)
+			return nil, errors.Join(err, closeErr)
 		}
+		
 		loggers = append(loggers, l)
 	}
 
 	return &multiLogger{
 		loggers: loggers,
 	}, nil
+}
+
+func closeLoggers(loggers []log.Log) error {
+	var err error
+	for _, l := range loggers {
+		err = errors.Join(err, l.Close())
+	}
+	return err
 }
 
 type multiLogger struct {
@@ -58,12 +69,12 @@ func (m *multiLogger) Name() logger.Logger {
 }
 
 // Closed returns true only if all underlying loggers are closed.
-// If at least one child logger is still active, it returns false to 
+// If at least one child logger is still active, it returns false to
 // allow continued operations on the remaining functional channels.
 func (m *multiLogger) Closed() bool {
 	for _, l := range m.loggers {
 		if !l.Closed() {
-			return true
+			return false
 		}
 	}
 	return true
@@ -79,8 +90,8 @@ func (m *multiLogger) Custom(category string, message string) record.Record {
 	return last
 }
 
-// Customc is the high-performance version of Custom. 
-// It accepts a typed record.Category, avoiding type conversions and 
+// Customc is the high-performance version of Custom.
+// It accepts a typed record.Category, avoiding type conversions and
 // ensuring that only valid, pre-defined categories are used.
 func (m *multiLogger) Customc(category record.Category, message string) record.Record {
 	var last record.Record
@@ -167,7 +178,7 @@ func (m *multiLogger) Errors(message string) record.Record {
 	return last
 }
 
-// Errorf logs a formatted error message, allowing developers to wrap 
+// Errorf logs a formatted error message, allowing developers to wrap
 // error context into a single readable entry.
 func (m *multiLogger) Errorf(format string, a ...any) record.Record {
 	var last record.Record
@@ -177,7 +188,7 @@ func (m *multiLogger) Errorf(format string, a ...any) record.Record {
 	return last
 }
 
-// Record allows manual insertion of pre-built Record objects into 
+// Record allows manual insertion of pre-built Record objects into
 // all underlying engines simultaneously.
 func (m *multiLogger) Record(records ...record.Record) []record.Record {
 	for _, l := range m.loggers {
@@ -186,8 +197,8 @@ func (m *multiLogger) Record(records ...record.Record) []record.Record {
 	return records
 }
 
-// Close gracefully shuts down all child loggers. It collects all 
-// flushed records from every child and returns the last encountered 
+// Close gracefully shuts down all child loggers. It collects all
+// flushed records from every child and returns the last encountered
 // error (if any) during the mass-closing process.
 func (m *multiLogger) Close() error {
 	var lastErr error

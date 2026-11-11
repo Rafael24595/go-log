@@ -5,8 +5,10 @@ import (
 	"strings"
 	"testing"
 
-	assert "github.com/Rafael24595/go-assert/assert/test"
 	fmt_json "github.com/Rafael24595/go-log/log/format/json"
+
+	"github.com/Rafael24595/go-assert/assert"
+	"github.com/Rafael24595/go-assert/require"
 	"github.com/Rafael24595/go-log/log/record"
 )
 
@@ -19,18 +21,18 @@ func TestJsonLinesFormat(t *testing.T) {
 	output, err := fmt_json.JsonLineFormat.Format(records...)
 	assert.Nil(t, err)
 
-	trimmedOutput := strings.TrimSpace(output)
-	lines := strings.Split(trimmedOutput, "\n")
+	lines := strings.Split(output, "\n")
 
-	assert.Len(t, len(lines), records)
+	require.Size(t, len(records)+1, lines)
+	assert.Equal(t, lines[len(lines)-1], "")
 
-	for i, line := range lines {
+	for i, rec := range records {
 		var r record.Record
 
-		err := json.Unmarshal([]byte(line), &r)
+		err := json.Unmarshal([]byte(lines[i]), &r)
 		assert.Nil(t, err)
 
-		assert.Equal(t, r.Message, records[i].Message)
+		assert.Equal(t, r.Message, rec.Message)
 	}
 }
 

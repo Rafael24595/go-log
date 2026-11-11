@@ -3,7 +3,7 @@ package record
 import (
 	"testing"
 
-	assert "github.com/Rafael24595/go-assert/assert/test"
+	"github.com/Rafael24595/go-assert/assert"
 )
 
 func TestNoOpStore_Behavior(t *testing.T) {
@@ -13,5 +13,5 @@ func TestNoOpStore_Behavior(t *testing.T) {
 	assert.Nil(t, err)
 
 	records := store.All()
-	assert.Len(t, 0, records)
+	assert.Size(t, 0, records)
 }

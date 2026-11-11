@@ -74,7 +74,9 @@ func WriteFileSafe(filePath, content string) (err error) {
 	tmpPath := tmpFile.Name()
 
 	defer func() {
-		err = errors.Join(err, os.Remove(tmpPath))
+		if err != nil {
+			err = errors.Join(err, os.Remove(tmpPath))
+		}
 	}()
 
 	if _, err := tmpFile.Write([]byte(content)); err != nil {
@@ -98,7 +100,7 @@ func WriteFileSafe(filePath, content string) (err error) {
 
 // AppendFileSafe appends content to a file, creating it if it doesn't exist.
 // It uses Sync() to ensure the data is physically persisted to the disk.
-func AppendFileSafe(filePath, content string)  (err error) {
+func AppendFileSafe(filePath, content string) (err error) {
 	dir := filepath.Dir(filePath)
 	if err := os.MkdirAll(dir, os.ModePerm); err != nil {
 		return err
