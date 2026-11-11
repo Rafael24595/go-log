@@ -8,9 +8,9 @@ import (
 	"github.com/Rafael24595/go-log/log/format"
 	"github.com/Rafael24595/go-log/log/format/json"
 	"github.com/Rafael24595/go-log/log/internal/clock"
-	"github.com/Rafael24595/go-log/log/internal/constants"
 	"github.com/Rafael24595/go-log/log/internal/engine"
 	"github.com/Rafael24595/go-log/log/internal/file"
+	"github.com/Rafael24595/go-log/log/internal/paths"
 	"github.com/Rafael24595/go-log/log/logger"
 	"github.com/Rafael24595/go-log/log/record"
 )
@@ -80,12 +80,12 @@ func makeCloseAction(flushed *atomic.Bool, store record.Store) engine.CloseActio
 		}
 
 		name := fmt.Sprintf(
-			"log-unsigned-%s.%s", 
-			format.FormatMillisecondsCompact(timestamp), 
+			"log-unsigned-%s.%s",
+			format.FormatMillisecondsCompact(timestamp),
 			json.Extension,
 		)
-		
-		path := filepath.Join(constants.DefaultPath, name)
+
+		path := filepath.Join(paths.BootstrapDir(), name)
 
 		return file.WriteFileSafe(path, string(data))
 	}

@@ -11,9 +11,9 @@ import (
 	"github.com/Rafael24595/go-log/log/format"
 	"github.com/Rafael24595/go-log/log/format/text"
 	"github.com/Rafael24595/go-log/log/internal/clock"
-	"github.com/Rafael24595/go-log/log/internal/constants"
 	"github.com/Rafael24595/go-log/log/internal/engine"
 	"github.com/Rafael24595/go-log/log/internal/file"
+	"github.com/Rafael24595/go-log/log/internal/paths"
 	"github.com/Rafael24595/go-log/log/logger"
 	"github.com/Rafael24595/go-log/log/provider/stream"
 	"github.com/Rafael24595/go-log/log/record"
@@ -49,7 +49,7 @@ func (p FileProvider) Build(ctx context.Context) (log.Log, error) {
 	timestamp := clock.UnixMilliClock()
 
 	if p.Path == "" {
-		p.Path = constants.DefaultPath
+		p.Path = paths.BootstrapDir()
 	}
 
 	if p.Format == nil {
