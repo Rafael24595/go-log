@@ -69,7 +69,7 @@ func (m *multiLogger) Name() logger.Logger {
 }
 
 // Closed returns true only if all underlying loggers are closed.
-// If at least one child logger is still active, it returns false to 
+// If at least one child logger is still active, it returns false to
 // allow continued operations on the remaining functional channels.
 func (m *multiLogger) Closed() bool {
 	for _, l := range m.loggers {
@@ -90,8 +90,8 @@ func (m *multiLogger) Custom(category string, message string) record.Record {
 	return last
 }
 
-// Customc is the high-performance version of Custom. 
-// It accepts a typed record.Category, avoiding type conversions and 
+// Customc is the high-performance version of Custom.
+// It accepts a typed record.Category, avoiding type conversions and
 // ensuring that only valid, pre-defined categories are used.
 func (m *multiLogger) Customc(category record.Category, message string) record.Record {
 	var last record.Record
@@ -178,7 +178,7 @@ func (m *multiLogger) Errors(message string) record.Record {
 	return last
 }
 
-// Errorf logs a formatted error message, allowing developers to wrap 
+// Errorf logs a formatted error message, allowing developers to wrap
 // error context into a single readable entry.
 func (m *multiLogger) Errorf(format string, a ...any) record.Record {
 	var last record.Record
@@ -188,7 +188,7 @@ func (m *multiLogger) Errorf(format string, a ...any) record.Record {
 	return last
 }
 
-// Record allows manual insertion of pre-built Record objects into 
+// Record allows manual insertion of pre-built Record objects into
 // all underlying engines simultaneously.
 func (m *multiLogger) Record(records ...record.Record) []record.Record {
 	for _, l := range m.loggers {
@@ -197,8 +197,8 @@ func (m *multiLogger) Record(records ...record.Record) []record.Record {
 	return records
 }
 
-// Close gracefully shuts down all child loggers. It collects all 
-// flushed records from every child and returns the last encountered 
+// Close gracefully shuts down all child loggers. It collects all
+// flushed records from every child and returns the last encountered
 // error (if any) during the mass-closing process.
 func (m *multiLogger) Close() error {
 	var lastErr error
