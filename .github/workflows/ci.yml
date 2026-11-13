@@ -9,3 +9,5 @@ on:
 jobs:
   ci:
     uses: Rafael24595/github-workflows/.github/workflows/go-ci.yml@main
+    with:
+      go-version: "1.27.4"
